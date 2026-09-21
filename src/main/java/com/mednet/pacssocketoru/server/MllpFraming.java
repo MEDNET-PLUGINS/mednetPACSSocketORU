@@ -1,11 +1,8 @@
 package com.mednet.pacssocketoru.server;
 
-import com.mednet.pacssocketoru.parser.Hl7Encoding;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -19,15 +16,6 @@ public final class MllpFraming {
     public static final char CARRIAGE_RETURN = 0x0D;
 
     private MllpFraming() {
-    }
-
-    public static String wrap(String hl7Payload) {
-        String payload = hl7Payload == null ? "" : hl7Payload;
-        return START_OF_BLOCK + payload + END_OF_BLOCK + CARRIAGE_RETURN;
-    }
-
-    public static byte[] wrapBytes(String hl7Payload) {
-        return wrap(hl7Payload).getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -71,11 +59,27 @@ public final class MllpFraming {
         if (buffer.size() == 0 && previous == -1) {
             return null;
         }
-        return Hl7Encoding.decodeUtf8(buffer.toByteArray());
+        return decodeUtf8(buffer.toByteArray());
     }
 
-    public static void writeMessage(OutputStream out, String hl7Payload) throws IOException {
-        out.write(wrapBytes(hl7Payload));
-        out.flush();
+    /**
+     * Decode raw HL7 bytes as UTF-8 (BOM stripped). If the result looks like UTF-8 read as Latin-1
+     * ({@code Â«}, {@code â€}), recover the original Unicode.
+     */
+    static String decodeUtf8(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+        int offset = 0;
+        int length = bytes.length;
+        if (length >= 3
+                && (bytes[0] & 0xFF) == 0xEF
+                && (bytes[1] & 0xFF) == 0xBB
+                && (bytes[2] & 0xFF) == 0xBF) {
+            offset = 3;
+            length -= 3;
+        }
+        String decoded = new String(bytes, offset, length, StandardCharsets.UTF_8);
+        return decoded;
     }
 }

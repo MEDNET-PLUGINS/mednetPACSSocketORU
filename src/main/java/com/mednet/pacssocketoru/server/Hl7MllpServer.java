@@ -1,6 +1,5 @@
 package com.mednet.pacssocketoru.server;
 
-import com.mednet.pacssocketoru.ack.Hl7AckBuilder;
 import com.mednet.pacssocketoru.client.PacsReceiverClient;
 import com.mednet.pacssocketoru.config.PacsSocketProperties;
 
@@ -88,24 +87,21 @@ public class Hl7MllpServer {
                     continue;
                 }
                 log("Received " + raw.length() + " chars");
-                String ack = process(raw);
-                MllpFraming.writeMessage(socket.getOutputStream(), ack);
-                log("ACK sent");
+                process(raw);
             }
         } catch (IOException ex) {
             log("Connection closed: " + ex.getMessage());
         }
     }
 
-    String process(String rawHl7) {
+    void process(String rawHl7) {
         try {
             log("Raw HL7 before forward (" + (rawHl7 == null ? 0 : rawHl7.length()) + " chars):\n" + forLog(rawHl7));
             receiverClient.postRawHl7(pacsName, rawHl7);
-            return Hl7AckBuilder.accept(rawHl7);
+            log("Forwarded to receiver API");
         } catch (Exception ex) {
             log("Receiver API error: " + ex.getMessage());
             ex.printStackTrace();
-            return Hl7AckBuilder.error(rawHl7, ex.getMessage() == null ? "Internal server error" : ex.getMessage());
         }
     }
 
